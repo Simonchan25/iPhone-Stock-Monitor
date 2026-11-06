@@ -1,0 +1,16 @@
+# Build artifacts and local runtime data
+.DS_Store
+.AppleDouble/
+._*
+.build/
+dist/
+*.app/
+*.zip
+*.log
+*.cookies
+.env
+.env.*
+iphone-push.json
+status.json
+query-schedule.json
+monitor.lock
