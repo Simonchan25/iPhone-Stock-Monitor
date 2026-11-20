@@ -1,4 +1,18 @@
-# 仓库整理验证记录
+# 验证记录
+
+## 2026-11-20：美国 53704 / Night Sky 256GB（v1.5.2）
+
+- 美国 Apple 对应购买页确认颜色 Night Sky、容量 256GB，商品编号 `MK1F4LL/A`；购买链接采用“稍后连接运营商”选项。
+- 邮编 53704 的官方库存响应返回 12 家门店：Hilldale、Mayfair、Bayshore、Deer Park、Woodfield、Old Orchard、Main Place、Oakbrook、Lincoln Park、Michigan Avenue、Orland Square Mall、University Park Mall。范围采用 Apple 返回列表，含较远城市。
+- 本机构建、打包后临时签名检查、40 项离线自测通过。新增覆盖美国 endpoint / SKU / 邮编，以及禁止恢复其他 SKU、邮编或门店集合的历史状态。
+- 已安装 v1.5.2（build 8），运行状态确认 SKU `MK1F4LL/A`、邮编 `53704`、12 店且未暂停。首次正式查询于 `2026-11-20T03:00:56Z` 成功（悉尼 14:00:56；Madison 前一日 21:00:56），该次 12 家均不可自提。
+- 实际窗口确认新商品、地区、邮编及全部 12 家门店可见；Bark 配置文件哈希在升级前后一致，强提醒仍开启，文件权限 `0600`。未为配置切换发送模拟补货通知。
+- 保留原有查询预算及冷却；不沿用澳洲旧库存和成功时间。原 HTTP 541 的长期稳定性问题没有因此解决；以上是单次线上验证，不是持续运行保证。
+- 实际 Bark 密钥、Cookie、运行日志和本地配置不进入提交。GitHub Actions 远程结果以对应运行记录为准。
+
+---
+
+# 2026-11-06：初次仓库整理验证记录
 
 验证日期：2026-11-06（Australia/Sydney）。源码基线 v1.5.1。
 

@@ -1,5 +1,7 @@
 # iPhone 手机提醒：Bark 配置指南
 
+当前监控美国邮编 53704 附近的 iPhone Duo Night Sky 256GB。切换目标不需要重新配置已保存的 Bark 地址。
+
 Mac 负责查询库存，Bark 负责把提醒发送到 iPhone。iPhone 可以离开 Mac、通过互联网接收通知；Mac 仍须保持运行和联网。
 
 ## 1. 在 iPhone 准备 Bark

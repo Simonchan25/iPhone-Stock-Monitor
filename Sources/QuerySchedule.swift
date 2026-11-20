@@ -10,7 +10,7 @@ func retryAfterDate(_ value: String?, now: Date) -> Date? {
     return formatter.date(from: value)
 }
 
-// One request covers all nine stores. The same gate applies to timers, wake,
+// One request covers all target stores. The same gate applies to timers, wake,
 // manual checks, and process restarts. Cooldown is policy, not an Apple SLA.
 struct QuerySchedule: Codable {
     static let normalInterval: TimeInterval = 150

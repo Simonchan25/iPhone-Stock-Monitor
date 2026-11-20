@@ -1,13 +1,26 @@
 import Foundation
 
-let productSKU = "MK2F4X/A"
-let productURL = URL(string: "https://www.apple.com/au/shop/buy-iphone/iphone-duo/7.6-inch-display-512gb-star-white")!
-let targetStores = ["Broadway", "Sydney", "Bondi", "Chatswood Chase", "Miranda", "Castle Towers", "Penrith", "Charlestown", "Canberra"]
+let productSKU = "MK1F4LL/A"
+let monitorPostcode = "53704"
+let productDescription = "iPhone Duo · Night Sky（深色）· 256GB"
+let restockDescription = "iPhone Duo Night Sky 256GB"
+let productURL = URL(string: "https://www.apple.com/shop/buy-iphone/iphone-duo/7.6-inch-display-256gb-night-sky-unlocked")!
+let targetStores = ["Hilldale", "Mayfair", "Bayshore", "Deer Park", "Woodfield", "Old Orchard", "Main Place", "Oakbrook", "Lincoln Park", "Michigan Avenue", "Orland Square Mall", "University Park Mall"]
 let stockURL: URL = {
-    var c = URLComponents(string: "https://www.apple.com/au/shop/retail/pickup-message")!
-    c.queryItems = [URLQueryItem(name: "pl", value: "true"), URLQueryItem(name: "mts.0", value: "regular"), URLQueryItem(name: "parts.0", value: productSKU), URLQueryItem(name: "location", value: "2007")]
+    var c = URLComponents(string: "https://www.apple.com/shop/retail/pickup-message")!
+    c.queryItems = [URLQueryItem(name: "pl", value: "true"), URLQueryItem(name: "mts.0", value: "regular"), URLQueryItem(name: "parts.0", value: productSKU), URLQueryItem(name: "location", value: monitorPostcode)]
     return c.url!
 }()
+
+// Never reuse inventory or success timestamps from a different region/configuration.
+func isCurrentMonitorState(_ state: [String: Any]) -> Bool {
+    guard state["product"] as? String == productSKU,
+          state["postcode"] as? String == monitorPostcode,
+          let targets = state["targets"] as? [String],
+          targets.count == targetStores.count,
+          Set(targets) == Set(targetStores) else { return false }
+    return true
+}
 
 enum PickupAvailability: String, Codable {
     case available, unavailable, ineligible
@@ -107,10 +120,21 @@ func runSelfTests() throws {
     func check(_ value: @autoclosure () -> Bool, _ name: String) throws {
         guard value() else { throw StockError(message: "测试失败：\(name)") }; print("PASS \(name)")
     }
+    let query = URLComponents(url: stockURL, resolvingAgainstBaseURL: false)!
+    let params = Dictionary(uniqueKeysWithValues: query.queryItems!.map { ($0.name, $0.value ?? "") })
+    try check(query.path == "/shop/retail/pickup-message" && params["location"] == "53704" && params["parts.0"] == "MK1F4LL/A", "美国接口使用正确邮编与深色 256GB SKU")
+    let state: [String: Any] = ["product": productSKU, "postcode": monitorPostcode, "targets": targetStores]
+    try check(isCurrentMonitorState(state), "匹配配置的历史状态可恢复")
+    var previous = state; previous["product"] = "MK2F4X/A"
+    try check(!isCurrentMonitorState(previous), "澳洲旧 SKU 的库存和成功时间不可恢复")
+    previous = state; previous["postcode"] = "2007"
+    try check(!isCurrentMonitorState(previous), "其他邮编的历史状态不可恢复")
+    previous = state; previous["targets"] = Array(targetStores.dropLast())
+    try check(!isCurrentMonitorState(previous), "缺少门店的历史状态不可恢复")
     let empty = try parse(fixture())
-    let stock = try parse(fixture([0, 8]))
-    try check(empty.count == 9 && empty.allSatisfy { !$0.available }, "新接口九店明确无货")
-    try check(stock.filter(\.available).map(\.name) == ["Broadway", "Canberra"], "任一目标门店有货")
+    let stock = try parse(fixture([0, targetStores.count - 1]))
+    try check(empty.count == targetStores.count && empty.allSatisfy { !$0.available }, "美国目标门店明确无货")
+    try check(stock.filter(\.available).map(\.name) == [targetStores.first!, targetStores.last!], "任一目标门店有货")
     let ineligible = try parse(fixture([], ineligible: [0]))
     try check(ineligible[0].availability == .ineligible && !ineligible[0].available, "不可自提不冒充有货")
     var tracker = AlertTracker()

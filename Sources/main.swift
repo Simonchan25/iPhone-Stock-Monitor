@@ -90,7 +90,7 @@ class Monitor: NSObject, NSApplicationDelegate, NSWindowDelegate {
         activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .idleSystemSleepDisabled], reason: "持续监控用户指定的 iPhone 门店补货")
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(showWindow), name: Notification.Name("com.local.iphoneduostock.showWindow"), object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(woke), name: NSWorkspace.didWakeNotification, object: nil)
-        log("START v1.5.1 endpoint=/au/shop/retail/pickup-message product=\(productSKU) postcode=2007 targets=\(targetStores.joined(separator: ","))")
+        log("START v1.5.2 endpoint=/shop/retail/pickup-message product=\(productSKU) postcode=\(monitorPostcode) targets=\(targetStores.joined(separator: ","))")
         check()
         if CommandLine.arguments.contains("--test-alert") { testAlert() }
     }
@@ -105,14 +105,15 @@ class Monitor: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let b = NSButton(title: title, target: self, action: action); b.bezelStyle = .rounded; b.frame = rect; return b
     }
     func createWindow() {
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 610), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+        let extraStoreHeight = CGFloat(max(0, targetStores.count - 9) * 24)
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 610 + extraStoreHeight), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "iPhone Duo 库存监控"; window.center(); window.delegate = self; window.isReleasedWhenClosed = false
-        let v = NSView(frame: NSRect(x: 0, y: 0, width: 660, height: 610)); window.contentView = v
-        v.addSubview(label("iPhone Duo · 白色 · 512GB", 23, NSRect(x: 28, y: 555, width: 600, height: 35)))
-        v.addSubview(label("澳洲 Apple Store｜邮编 2007｜指定 9 家门店", 13, NSRect(x: 28, y: 526, width: 600, height: 25)))
-        statusLabel = label(statusText, 18, NSRect(x: 28, y: 468, width: 600, height: 47)); v.addSubview(statusLabel)
-        detailLabel = label("", 12, NSRect(x: 28, y: 391, width: 604, height: 70)); v.addSubview(detailLabel)
-        storeLabel = label("", 14, NSRect(x: 28, y: 140, width: 604, height: 240)); storeLabel.font = .monospacedSystemFont(ofSize: 13, weight: .regular); v.addSubview(storeLabel)
+        let v = NSView(frame: NSRect(x: 0, y: 0, width: 660, height: 610 + extraStoreHeight)); window.contentView = v
+        v.addSubview(label(productDescription, 23, NSRect(x: 28, y: 555 + extraStoreHeight, width: 600, height: 35)))
+        v.addSubview(label("美国 Apple Store｜邮编 \(monitorPostcode)｜附近 \(targetStores.count) 家门店", 13, NSRect(x: 28, y: 526 + extraStoreHeight, width: 600, height: 25)))
+        statusLabel = label(statusText, 18, NSRect(x: 28, y: 468 + extraStoreHeight, width: 600, height: 47)); v.addSubview(statusLabel)
+        detailLabel = label("", 12, NSRect(x: 28, y: 391 + extraStoreHeight, width: 604, height: 70)); v.addSubview(detailLabel)
+        storeLabel = label("", 14, NSRect(x: 28, y: 140, width: 604, height: 240 + extraStoreHeight)); storeLabel.font = .monospacedSystemFont(ofSize: 13, weight: .regular); v.addSubview(storeLabel)
         checkButton = button("立即检查", #selector(checkNow), NSRect(x: 22, y: 89, width: 100, height: 32)); v.addSubview(checkButton)
         pauseButton = button("暂停监控", #selector(togglePause), NSRect(x: 128, y: 89, width: 100, height: 32)); v.addSubview(pauseButton)
         v.addSubview(button("测试提醒", #selector(testAlert), NSRect(x: 234, y: 89, width: 100, height: 32)))
@@ -167,7 +168,8 @@ class Monitor: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     func restoreHistory() {
         guard let data = try? Data(contentsOf: stateURL),
-              let state = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+              let state = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              isCurrentMonitorState(state) else { return }
         let iso = ISO8601DateFormatter()
         lastSuccess = (state["lastSuccess"] as? String).flatMap { iso.date(from: $0) }
         lastAttempt = (state["lastAttempt"] as? String).flatMap { iso.date(from: $0) }
@@ -226,13 +228,13 @@ class Monitor: NSObject, NSApplicationDelegate, NSWindowDelegate {
             rows = data; lastSuccess = now; errorText = nil
             let stock = rows.filter(\.available)
             let newlyAvailable = tracker.observe(rows)
-            statusText = stock.isEmpty ? "正常监控：最近查询 9 家均无货" : "发现库存：\(stock.count) 家门店可自提"
-            item.button?.title = stock.isEmpty ? "Duo 0/9" : "Duo 有货!"
+            statusText = stock.isEmpty ? "正常监控：最近查询 \(targetStores.count) 家均无货" : "发现库存：\(stock.count) 家门店可自提"
+            item.button?.title = stock.isEmpty ? "Duo 0/\(targetStores.count)" : "Duo 有货!"
             log("SUCCESS available=\(stock.map(\.name).joined(separator: ",")) stores=\(rows.count) next=\(ISO8601DateFormatter().string(from: schedule.nextAllowedAt))")
             if !newlyAvailable.isEmpty {
-                showAlert(title: "白色 512GB 有货了！", text: newlyAvailable.map { "Apple \($0.name)：可自提" }.joined(separator: "\n") + "\n\n请立即在苹果官网确认并下单。库存可能随时售罄。", repeating: true)
+                showAlert(title: "\(restockDescription) 有货了！", text: newlyAvailable.map { "Apple \($0.name)：可自提" }.joined(separator: "\n") + "\n\n请立即在苹果官网确认并下单。库存可能随时售罄。", repeating: true)
                 log("RESTOCK_ALERT \(newlyAvailable.map(\.name).joined(separator: ","))")
-                bark.send(title: "iPhone Duo 白色 512GB 补货", body: "检测时间：\(time(now))\n" + newlyAvailable.map { "Apple \($0.name)：检测时可自提" }.joined(separator: "\n") + "\n点击打开苹果官网，确认最新库存。")
+                bark.send(title: "\(restockDescription) 补货", body: "检测时间：\(time(now))\n" + newlyAvailable.map { "Apple \($0.name)：检测时可自提" }.joined(separator: "\n") + "\n点击打开苹果官网，确认最新库存。")
             }
         case .failure(let error):
             errorText = error.localizedDescription
@@ -269,7 +271,7 @@ class Monitor: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func save() {
         let encoder = JSONEncoder()
         let encoded = (try? encoder.encode(rows)).flatMap { try? JSONSerialization.jsonObject(with: $0) } ?? []
-        var x: [String: Any] = ["product": productSKU, "postcode": "2007", "targets": targetStores, "status": statusText, "paused": paused, "consecutiveFailures": failures, "rows": encoded, "updatedAt": ISO8601DateFormatter().string(from: Date())]
+        var x: [String: Any] = ["product": productSKU, "postcode": monitorPostcode, "targets": targetStores, "status": statusText, "paused": paused, "consecutiveFailures": failures, "rows": encoded, "updatedAt": ISO8601DateFormatter().string(from: Date())]
         x["iphonePushConfigured"] = bark?.isConfigured ?? false
         x["iphonePushStatus"] = bark?.status ?? "未配置"
         if let lastAttempt { x["lastAttempt"] = ISO8601DateFormatter().string(from: lastAttempt) }

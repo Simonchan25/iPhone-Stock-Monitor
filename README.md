@@ -1,20 +1,20 @@
 # iPhone 库存监控
 
-macOS 菜单栏工具，查询 Apple 澳洲指定 iPhone 配置的门店自提库存；发现任一目标门店可自提时，显示 Mac 弹窗、播放提示音，并可通过 Bark 向 iPhone 推送通知。
+macOS 菜单栏工具，查询 Apple 美国指定 iPhone 配置的门店自提库存；发现任一目标门店可自提时，显示 Mac 弹窗、播放提示音，并可通过 Bark 向 iPhone 推送通知。
 
-> **当前源码基线：v1.5.1。Apple 库存接口会反复返回 HTTP 541，持续监控问题尚未解决。** 失败时库存显示“未知”，自动冷却重试。不能保证全天连续查询或第一时间发现补货。手机推送配置成功也不代表库存查询正常。详见 [已知限制与验证边界](docs/LIMITATIONS.md)。
+> **当前源码基线：v1.5.2。Apple 库存接口会反复返回 HTTP 541，持续监控问题尚未解决。** 失败时库存显示“未知”，自动冷却重试。不能保证全天连续查询或第一时间发现补货。手机推送配置成功也不代表库存查询正常。详见 [已知限制与验证边界](docs/LIMITATIONS.md)。
 
 ## 默认监控对象
 
 | 项目 | 配置 |
 | --- | --- |
-| 地区 | Apple Australia |
-| 机型 / 颜色 / 容量 | iPhone Duo / Star White 白色 / 512GB |
-| 商品编号 | `MK2F4X/A` |
-| 邮编 | `2007` |
-| 门店 | Broadway、Sydney、Bondi、Chatswood Chase、Miranda、Castle Towers、Penrith、Charlestown、Canberra，共 9 家 |
+| 地区 | Apple United States |
+| 机型 / 颜色 / 容量 | iPhone Duo / Night Sky 深色（俗称黑色）/ 256GB / 稍后连接运营商 |
+| 商品编号 | `MK1F4LL/A` |
+| 邮编 | `53704` |
+| 门店 | Hilldale、Mayfair、Bayshore、Deer Park、Woodfield、Old Orchard、Main Place、Oakbrook、Lincoln Park、Michigan Avenue、Orland Square Mall、University Park Mall，共 12 家 |
 
-这是一份针对上述配置的专用工具，不是任意机型的通用库存查询器。商品链接、SKU、门店与接口来自 2026 年 10 月的项目配置，使用前请在 [Apple 购买页面](https://www.apple.com/au/shop/buy-iphone/iphone-duo/7.6-inch-display-512gb-star-white)重新核对；接口和商品可能发生变化。
+这是一份针对上述配置的专用工具，不是任意机型的通用库存查询器。商品链接、SKU 与邮编附近返回的 12 家门店已于 2026-11-20 核对；“附近”采用 Apple 按该邮编返回的范围，包含周边较远城市，不代表全部在 Madison 市内，使用前请在 [Apple 购买页面](https://www.apple.com/shop/buy-iphone/iphone-duo/7.6-inch-display-256gb-night-sky-unlocked)重新核对；接口和商品可能发生变化。切换配置时不沿用澳洲旧库存或上次成功时间；原有查询预算、冷却及 Bark 设备配置保留。
 
 ## 从源码构建
 
@@ -92,7 +92,7 @@ Mac 必须开机、用户已登录并保持联网。运行期间程序阻止空�
 
 ```text
 Sources/
-  StockCore.swift      # 精确 SKU、九店响应校验、查询和库存变化判断
+  StockCore.swift      # 精确 SKU、目标门店响应校验、查询和库存变化判断
   QuerySchedule.swift  # 持久化查询间隔、请求预算和错误冷却
   BarkPush.swift       # 本地配置、Bark POST 推送和有限重试
   main.swift           # AppKit 菜单栏、窗口、提示音及监控生命周期
